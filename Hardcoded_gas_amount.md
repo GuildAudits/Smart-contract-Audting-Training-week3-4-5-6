@@ -24,6 +24,11 @@ some smart contract broke because their `fallback functions` used to consume les
             msg.sender.transfer(amount);
         }
     }
+    
+    
+    
+ Any smart contract that uses `transfer()` or `send()` is taking a hard dependency on gas costs by forwarding a fixed amount of `gas: 2300`.
+ so, Stop using `transfer()` and `send()` in your code and switch to using `call()` instead:
 
     contract Fixed {
         function withdraw(uint256 amount) external {
@@ -32,3 +37,7 @@ some smart contract broke because their `fallback functions` used to consume les
             require(success, "Transfer failed.");
         }
     }
+    
+    
+ * This carries a risk regarding `reentrancy`. Be sure to use one of the robust methods available for `preventing reentrancy vulnerabilities`.
+ * for more info about prevention of reentrancy reach [out]()
