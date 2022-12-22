@@ -40,4 +40,4 @@ some smart contract broke because their `fallback functions` used to consume les
     
     
  * This carries a risk regarding `reentrancy`. Be sure to use one of the robust methods available for `preventing reentrancy vulnerabilities`.
- * for more info about prevention of reentrancy reach [out]()
+ * for more info about prevention of reentrancy reach [out](https://github.com/AnandK-2024/Smart-contract-Audting-Training-week3-4-5-6/blob/main/reentrancy.md)
