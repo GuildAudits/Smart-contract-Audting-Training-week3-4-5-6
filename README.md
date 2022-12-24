@@ -46,3 +46,5 @@ The following is a list of known attacks which you should be aware of, and defen
 
 
 [Hide Solidity code with an external contract](https://github.com/AnandK-2024/Smart-contract-Audting-Training-week3-4-5-6/blob/main/Hide_Solidity_code_with_external_contract.md)
+
+[Incorrect modifier](https://github.com/AnandK-2024/Smart-contract-Audting-Training-week3-4-5-6/blob/main/Incorrect_modifier.md)
