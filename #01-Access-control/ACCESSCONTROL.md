@@ -1,3 +1,5 @@
+# **Attack Vectors in Solidity: Inappropriate Access Control**
+
 ### **Introduction:**
 
 In Solidity, access control refers to the ability to restrict certain functions or variables to only be accessible or modifiable by certain parties. This is typically achieved through the use of modifiers, which are special functions placed before the function or variable they are modifying. Proper access control is essential for ensuring the security and integrity of smart contracts by limiting the ability of unauthorized parties to access or modify sensitive data or functions.
