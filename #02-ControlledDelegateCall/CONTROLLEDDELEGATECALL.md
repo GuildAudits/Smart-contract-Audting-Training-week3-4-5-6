@@ -1,4 +1,4 @@
-#**Attack Vectors in Solidity #2: Controlled DeligateCall**
+# **Attack Vectors in Solidity #2: Controlled DeligateCall**
 
 ### **Introduction**
 
