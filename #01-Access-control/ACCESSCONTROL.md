@@ -1,4 +1,4 @@
-# **Attack Vectors in Solidity: Inappropriate Access Control**
+# **Attack Vectors in Solidity: Inappropriate Access Control** 
 
 ### **Introduction:**
 
