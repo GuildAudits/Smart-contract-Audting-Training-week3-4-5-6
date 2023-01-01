@@ -4,6 +4,7 @@ Unprotected withdraw funcions can serve as an attack vector for hackers. For exa
 
 ## Code Example
 
+```
 contract TokenSaleChallenge {
 
     mapping(address => uint256) public balanceOf;
@@ -31,3 +32,4 @@ contract TokenSaleChallenge {
         msg.sender.transfer(numTokens * PRICE_PER_TOKEN);
     }
 }
+```
