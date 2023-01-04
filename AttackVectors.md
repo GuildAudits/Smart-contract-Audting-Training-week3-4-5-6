@@ -289,7 +289,7 @@ contract Hack {
 ```
 
 ## SOLIDITY ATTACK VECTORS #4 - Signature Replay
-Signature Replay is using the same signature to execute transactions multiple times. The benefit of signature replay is to reduce number of transaction on chain and perform a gas-less transaction, called `meta transaction`.
+Signature Replay is using the same signature to execute transactions multiple times. The benefit of signature replay is to reduce number of transaction on chain and perform a gas-less transaction, called <u>`meta transaction`</u>.
 
 Take for an example, a multisig wallet controlled by _Bob_ and _Alice_. _Bob_ initiates a transaction for withdrawal, thereby approving himself to spend ether, _Alice_ also approve _Bob_ to withdraw ether, and the withdrawal is finally done making three transactions in total. 
 ![Signature Replay 1 Illustration](/images/sig1.png "Signature Replay 1 Illustration")
@@ -413,3 +413,39 @@ contract MultiSigWallet {
     }
 }
 ```
+
+## SOLIDITY ATTACK VECTORS #5 - Block Timestamp Manipulation Attack
+A miner can manipulate the _block.timestamp_ which can be used to their advantage to attack a smart contract. _block.timestamp_ can be manipulated by miners with the following constraints:
+
+* it cannot be stamped with an earlier time than its parent
+* it cannot be too far in the future
+
+The Roulette contract is a game where you can win all of the Ether in the contract if you can submit a transaction at a specific timing.
+A player needs to send 5 Ether and wins if the _block.timestamp_ % 15 == 0.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract Roulette {
+    uint public pastBlockTime;
+
+    constructor() payable {}
+
+    function spin() external payable {
+        require(msg.value == 5 ether);
+        require(block.timestamp != pastBlockTime);
+
+        pastBlockTime = block.timestamp;
+
+        if (block.timestamp % 15 == 0) {
+            (bool sent, ) = msg.sender.call{value: address(this).balance}("");
+            require(sent, "Failed to send Ether");
+        }
+    }
+}
+```
+A miner will try to manipulate the system to win the Ether in this contract by calling the spin function and submit 5 Ether to play the game, then submit a _block.timestamp_ for the next block that is divisible by 15. If the miner wins the next block he will win all the Ether in the smart contract. 
+
+### Preventive Techniques
+Don't use block.timestamp for a source of entropy and random number. In a case where you have to use _block.timestamp_ follow the <u>`15 second rule`</u>: if the scale of your time-dependent event can vary by 15 seconds and maintain integrity.
