@@ -287,3 +287,129 @@ contract Hack {
     }
 }
 ```
+
+## SOLIDITY ATTACK VECTORS #4 - Signature Replay
+Signature Replay is using the same signature to execute transactions multiple times. The benefit of signature replay is to reduce number of transaction on chain and perform a gas-less transaction, called `meta transaction`.
+
+Take for an example, a multisig wallet controlled by _Bob_ and _Alice_. _Bob_ initiates a transaction for withdrawal, thereby approving himself to spend ether, _Alice_ also approve _Bob_ to withdraw ether, and the withdrawal is finally done making three transactions in total. 
+![Signature Replay 1 Illustration](/images/sig1.png "Signature Replay 1 Illustration")
+However, using signature can help us reduce the transactions to one, _Alice_ can send her signature to _Bob_ off-chain, then _Bob_ can send his signature together with Alice's signature into the contract.
+![Signature Replay 2 Illustration](/images/sig2.png "Signature Replay 2 Illustration")
+Using the same signature, _Bob_ can withdraw another ether without _Alice's_ approval.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+import "github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.5/contracts/utils/cryptography/ECDSA.sol";
+
+contract MultiSigWallet {
+    using ECDSA for bytes32;
+
+    address[2] public owners;
+
+    constructor(address[2] memory _owners) payable {
+        owners = _owners;
+    }
+
+    function deposit() external payable {}
+
+    function transfer(address _to, uint _amount, bytes[2] memory _sigs) external {
+        bytes32 txHash = getTxHash(_to, _amount);
+        require(_checkSigs(_sigs, txHash), "invalid sig");
+
+        (bool sent, ) = _to.call{value: _amount}("");
+        require(sent, "Failed to send Ether");
+    }
+
+    function getTxHash(address _to, uint _amount) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(_to, _amount));
+    }
+
+    function _checkSigs(
+        bytes[2] memory _sigs,
+        bytes32 _txHash
+    ) private view returns (bool) {
+        bytes32 ethSignedHash = _txHash.toEthSignedMessageHash();
+
+        for (uint i = 0; i < _sigs.length; i++) {
+            address signer = ethSignedHash.recover(_sigs[i]);
+            bool valid = signer == owners[i];
+
+            if (!valid) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+```
+
+### Preventive Techniques
+Having a unique signature for every transaction by keeping track of every transaction that has been executed. This can be accomplished by icluding the _nonce_ in the signature and keeping track of the _nonce_ in the contract.
+
+For the same code deployed at a different address, signature replay can be prevented by including the address of the contract in the signature. To prevent attack from the first case, nonce can be included in the contract.
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+import "github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.5/contracts/utils/cryptography/ECDSA.sol";
+
+contract MultiSigWallet {
+    using ECDSA for bytes32;
+
+    address[2] public owners;
+    mapping(bytes32 => bool) public executed;
+
+    constructor(address[2] memory _owners) payable {
+        owners = _owners;
+    }
+
+    function deposit() external payable {}
+
+    function transfer(
+        address _to,
+        uint _amount,
+        uint _nonce,
+        bytes[2] memory _sigs
+    ) external {
+        bytes32 txHash = getTxHash(_to, _amount, _nonce);
+        require(!executed[txHash], "tx executed");
+        require(_checkSigs(_sigs, txHash), "invalid signature");
+
+        executed[txHash] = true;
+
+        (bool sent, ) = _to.call{value: _amount}("");
+        require(sent, "Failed to send Ether");
+    }
+
+    function getTxHash(
+        address _to,
+        uint _amount,
+        uint _nonce
+    ) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(address(this), _to, _amount, _nonce));
+    }
+
+    function _checkSigs(
+        bytes[2] memory _sigs,
+        bytes32 _txHash
+    ) private view returns (bool) {
+        bytes32 ethSignedHash = _txHash.toEthSignedMessageHash();
+
+        for (uint i = 0; i < _sigs.length; i++) {
+            address signer = ethSignedHash.recover(_sigs[i]);
+            bool valid = signer == owners[i];
+
+            if (!valid) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+```
