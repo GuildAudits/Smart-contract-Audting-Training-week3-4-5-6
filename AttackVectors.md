@@ -449,3 +449,85 @@ A miner will try to manipulate the system to win the Ether in this contract by c
 
 ### Preventive Techniques
 Don't use block.timestamp for a source of entropy and random number. In a case where you have to use _block.timestamp_ follow the <u>`15 second rule`</u>: if the scale of your time-dependent event can vary by 15 seconds and maintain integrity.
+
+## SOLIDITY ATTACK VECTORS #6 - Denial Of Service
+Denial of Service by rejecting to accept Ether. There are many ways to attack a smart contract to make it unusable. One exploit is denial of service by making the function to send Ether fail.
+
+The solidity fallback function is executed if none of the other functions match the function identifier or no data was provided with the function call. When a _fallback_ function is not defined, the ether sent to the contract will be rejected, and this will prevent the rest of the logic to be executed. This is the overview of Denial of Service Attack.
+
+Historically, there was a denial of service attack during the “Turbulent Age” of the game KotET(King OG the Ether Throne) from 6 to 8 February 2016, which resulted in some character compensation and unreceived money not being returned to the player’s wallet.
+
+In the contract, KingOfEther, the goal of each player is to become _king_ by sending more ether than the previous player. The previous player will be refunded the amount of ether deposited in the contract. The attacker uses the _Attack_ contract with no _fallback_ function to send ether to _KingOfEther_ contract, then becomes the _king_. Any attempt to make another player after the attacker to become the _king_ will fail and revert the state.
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract KingOfEther {
+    address public king;
+    uint public balance;
+
+    function claimThrone() external payable {
+        require(msg.value > balance, "Need to pay more to become the king");
+
+        (bool sent, ) = king.call{value: balance}("");
+        require(sent, "Failed to send Ether");
+
+        balance = msg.value;
+        king = msg.sender;
+    }
+}
+
+contract Attack {
+    KingOfEther kingOfEther;
+
+    constructor(KingOfEther _kingOfEther) {
+        kingOfEther = KingOfEther(_kingOfEther);
+    }
+
+    function attack() public payable {
+        kingOfEther.claimThrone{value: msg.value}();
+    }
+}
+```
+
+Once the attacker becomes the _king_, subsequequent call to the `claimThrone()` will always fail. The game will no longer be able to continue, as no one can be able to deposit ether and become _king_.
+```solidity
+require(sent, "Failed to send Ether");
+```
+
+### Preventive Technique
+It is recommended to use fetch mode instead of send mode, each player can get their money back by using _withdraw()_.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract KingOfEther {
+    address public king;
+    uint public balance;
+    mapping(address => uint) public balances;
+
+    function claimThrone() external payable {
+        require(msg.value > balance, "Need to pay more to become the king");
+
+        balances[king] += balance;
+
+        balance = msg.value;
+        king = msg.sender;
+    }
+
+    function withdraw() public {
+        require(msg.sender != king, "Current king cannot withdraw");
+
+        uint amount = balances[msg.sender];
+        balances[msg.sender] = 0;
+
+        (bool sent, ) = msg.sender.call{value: amount}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+
+The mapping of the balances of each player will be updated in _claimThrone()_, and the player who was dethroned by the new _king_ can now call the _withdraw()_ to withdraw his/her funds.
