@@ -531,3 +531,39 @@ contract KingOfEther {
 ```
 
 The mapping of the balances of each player will be updated in _claimThrone()_, and the player who was dethroned by the new _king_ can now call the _withdraw()_ to withdraw his/her funds.
+
+## SOLIDITY ATTACK VECTORS #7 - Front Running
+Before transactions are added to the _block_, they are first sent to the _transaction pool (mempool)_. In the mempool, the miners mine the transaction with the highest _gas fee_, and add it to the _block_ before going to the transaction with the lower gas fee.
+
+Transactions take some time before they are mined. An attacker can watch the transaction pool and send a transaction, have it included in a block before the original transaction. This mechanism can be abused to re-order transactions to the attacker's advantage.
+
+In the **FindThisHash** contract below, the player is rewarded 10 ether for guessing correctly the hash in the transaction.
+
+![Front Running Illustration](/images/front-runner.jpg "Front Running Illustration")
+
+If Alice was able to guess the hash correctly, she will input the hash and call the _solve()_ function. Then Bob that is a malicious player keeps track of Bob's transaction in the mempool, get the hash and initiates a new transaction with higher _gas fee_.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract FindThisHash {
+    bytes32 public constant hash =
+        0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
+
+    constructor() payable {}
+
+    function solve(string memory solution) public {
+        require(hash == keccak256(abi.encodePacked(solution)), "Incorrect answer");
+
+        (bool sent, ) = msg.sender.call{value: 10 ether}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+```
+Since miners look for the transactions with the highest gas fee, Bob's transaction will then be included in a block before the Alice's transaction.
+
+### Preventive Technique
+Use LibSubmarine, which is an open-source smart contract library that makes it easy to protect your contract against front-runners by temporarily hiding transactions on-chain and reveal it at a later stage.
+
+
