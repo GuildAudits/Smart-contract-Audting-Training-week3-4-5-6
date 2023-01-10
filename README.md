@@ -21,7 +21,8 @@ https://medium.com/@oseiweifebhor/unprotected-functions-5-dcb164f7e2ff
 sixth article on reentrancy
 https://medium.com/@oseiweifebhor/reentrancy-6-18c0d15df4bb
 
-
+seventh article on signature replay
+https://medium.com/@oseiweifebhor/signature-replay-7-d944cd33a351
 
 eigth article on block.timestamp
 
