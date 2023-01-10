@@ -25,5 +25,7 @@ seventh article on signature replay
 https://medium.com/@oseiweifebhor/signature-replay-7-d944cd33a351
 
 eigth article on block.timestamp
-
 https://medium.com/@oseiweifebhor/block-timestamp-manipulation-8-10bfb5543c61
+
+nith article on return values
+https://medium.com/@oseiweifebhor/always-check-the-return-value-in-a-transaction-9-e502084390b6
