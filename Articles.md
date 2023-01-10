@@ -596,16 +596,17 @@ The use of a malicious smart contract, also referred to as a "proxy contract," t
 Here is a demonstration of how this vulnerability might be used to access certain functions in a basic Solidity contract that checks the tx.origin address:
 
 ```
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.0;
 
 contract MyContract {
     address public owner;
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 
-    function doSomething() public {
+    function doSomething() view public {
         require(msg.sender == tx.origin, "Unauthorized access");
         // do something
     }
@@ -618,17 +619,19 @@ The contract in the above example has a function called doSomething that is onl
 Here is a modified contract that substitutes address(this).caller for tx.origin:
 
 ```
-pragma solidity ^0.8.0;
+
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.0;
 
 contract MyContract {
     address public owner;
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 
-    function doSomething() public {
-        require(msg.sender == address(this).caller, "Unauthorized access");
+    function doSomething() view public {
+        require(msg.sender == address(this), "Unauthorized access");
         // do something
     }
 }
