@@ -29,3 +29,12 @@ https://medium.com/@oseiweifebhor/block-timestamp-manipulation-8-10bfb5543c61
 
 nith article on return values
 https://medium.com/@oseiweifebhor/always-check-the-return-value-in-a-transaction-9-e502084390b6
+
+tenth article on unsafe delegatecall
+https://medium.com/@oseiweifebhor/16447d3ed9c0
+
+11th article on tx.orgin phishing
+https://medium.com/@oseiweifebhor/tx-origin-phishing-11-30dead7d60f7
+
+12th article on
+https://medium.com/@oseiweifebhor/contract-with-zero-code-size-825ea463199c
